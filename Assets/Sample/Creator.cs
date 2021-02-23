@@ -19,10 +19,9 @@ public class Creator : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            var f = new ScriptableObjectSerializer.JSONFormatter();
-            var result = ScriptableObjectSerializer.Serializer.Serialize(this.hoge, f);
+            var result = ScriptableObjectSerializer.Serializer.Serialize(this.hoge);
             var json = Encoding.UTF8.GetString(result);
-            var h = ScriptableObjectSerializer.Serializer.Deserialize<Hoge>(result, f);
+            var h = ScriptableObjectSerializer.Serializer.Deserialize<Hoge>(result);
             Debug.Log(json);
             Debug.Log($"{h}:{h.fuu.aa}:{h.fuu.hoo.bb}");
         }

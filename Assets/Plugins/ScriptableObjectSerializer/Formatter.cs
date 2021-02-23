@@ -6,13 +6,26 @@ using UnityEngine;
 
 namespace ScriptableObjectSerializer
 {
+    public interface IFormatterRegistry
+    {
+        IFormatter GetFormatter<T>();
+    }
+
     public interface IFormatter
     {
         byte[] Serialize(IObjectNode obj);
         IObjectNode Deserialize(byte[] bin);
     }
 
-    public class JSONFormatter : IFormatter
+    public class JsonFormatterRegistry : IFormatterRegistry
+    {
+        public static readonly JsonFormatterRegistry Instance = new JsonFormatterRegistry();
+
+        private JsonFormatter formatter = new JsonFormatter();
+        public IFormatter GetFormatter<T>() => formatter;
+    }
+
+    class JsonFormatter : IFormatter
     {
         public byte[] Serialize(IObjectNode obj)
         {
@@ -96,8 +109,17 @@ namespace ScriptableObjectSerializer
         [Serializable]
         struct ComplexEntry
         {
+            /// <summary>
+            /// Name
+            /// </summary>
             public string n;
+            /// <summary>
+            /// ComplexValues
+            /// </summary>
             public List<ComplexEntry> c;
+            /// <summary>
+            /// IntValues
+            /// </summary>
             public List<IntEntry> i32;
         }
 
