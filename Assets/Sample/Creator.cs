@@ -24,6 +24,11 @@ public class Creator : MonoBehaviour
             var h = ScriptableObjectSerializer.Serializer.Deserialize<Hoge>(result);
             Debug.Log(json);
             Debug.Log($"{h}:{h.fuu.aa}:{h.fuu.hoo.bb}");
+            var nn = ScriptableObject.CreateInstance<Hoge>();
+            nn.fuu.aa = 39393939;
+            var patch = ScriptableObjectSerializer.Serializer.PatchFrom(nn, "fuu/aa");
+            ScriptableObjectSerializer.Serializer.PatchTo(h, patch);
+            Debug.Log($"{h}:{h.fuu.aa}:{h.fuu.hoo.bb}");
         }
     }
 }

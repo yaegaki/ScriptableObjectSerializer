@@ -104,7 +104,7 @@ namespace ScriptableObjectSerializer
                 {
                     var childAccessor = this.children[index];
                     var comp = string.Compare(childAccessor.Name, name, StringComparison.OrdinalIgnoreCase);
-                    if (comp < 0) break;
+                    if (comp > 0) break;
                     if (comp == 0)
                     {
                         index++;

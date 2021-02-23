@@ -23,6 +23,8 @@ namespace ScriptableObjectSerializer
         string GetString();
 
         IEnumerable<IObjectNode> EnumerateChildren();
+
+        IObjectNode CreatePatch(string path);
     }
 
     public class ComplexObjectNode : IObjectNode
@@ -41,6 +43,39 @@ namespace ScriptableObjectSerializer
         public string GetString() => default;
 
         public IEnumerable<IObjectNode> EnumerateChildren() => this.values;
+
+        public IObjectNode CreatePatch(string path)
+        {
+            var targetName = path;
+            var separator = path.IndexOf('/');
+            var trailPath = "";
+            if (separator >= 0)
+            {
+                targetName = path.Substring(0, separator);
+                trailPath = path.Substring(separator + 1);
+            }
+
+            var newValues = Array.Empty<IObjectNode>();
+            foreach (var v in this.values)
+            {
+                if (v.Name == targetName)
+                {
+                    var targetNode = v;
+                    if (trailPath.Length != 0)
+                    {
+                        targetNode = v.CreatePatch(trailPath);
+                    }
+
+                    if (targetNode != null)
+                    {
+                        newValues = new[] { targetNode };
+                    }
+                    break;
+                }
+            }
+
+            return new ComplexObjectNode(Name, newValues);
+        }
     }
 
     public class IntObjectNode : IObjectNode
@@ -60,5 +95,6 @@ namespace ScriptableObjectSerializer
         public string GetObject() => default;
 
         public IEnumerable<IObjectNode> EnumerateChildren() => Array.Empty<IObjectNode>();
+        public IObjectNode CreatePatch(string path) => null;
     }
 }
