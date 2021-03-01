@@ -17,3 +17,14 @@ MonoBehaviour:
   piyopiyo: 32
   fuu:
     aa: 55
+    hoo:
+      bb: 99
+      yuu:
+        aaa: 3
+        zzz:
+          h: 5
+        yuu2:
+          h: 4
+  ValueArray: 
+  ValueList: 
+  fuuArray: []

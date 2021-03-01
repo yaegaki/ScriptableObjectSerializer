@@ -1,7 +1,13 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
+
 
 public class Creator : MonoBehaviour
 {
@@ -11,7 +17,6 @@ public class Creator : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        
     }
 
     // Update is called once per frame
@@ -23,12 +28,7 @@ public class Creator : MonoBehaviour
             var json = Encoding.UTF8.GetString(result);
             var h = ScriptableObjectSerializer.Serializer.Deserialize<Hoge>(result);
             Debug.Log(json);
-            Debug.Log($"{h}:{h.fuu.aa}:{h.fuu.hoo.bb}");
-            var nn = ScriptableObject.CreateInstance<Hoge>();
-            nn.fuu.aa = 39393939;
-            var patch = ScriptableObjectSerializer.Serializer.PatchFrom(nn, "fuu/aa");
-            ScriptableObjectSerializer.Serializer.PatchTo(h, patch);
-            Debug.Log($"{h}:{h.fuu.aa}:{h.fuu.hoo.bb}");
+            Debug.Log($"{h}:{h.fuu.aa}:{h.fuu.hoo.bb}:{h.fuu.hoo.yuu.zzz.h}:{h.fuu.hoo.yuu.yuu2.h}");
         }
     }
 }
