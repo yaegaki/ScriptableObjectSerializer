@@ -14,6 +14,9 @@ public class Creator : MonoBehaviour
     [SerializeField]
     private Hoge hoge = default;
 
+    [SerializeField]
+    private Hoge dest = default;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -29,6 +32,7 @@ public class Creator : MonoBehaviour
             var h = ScriptableObjectSerializer.Serializer.Deserialize<Hoge>(result);
             Debug.Log(json);
             Debug.Log($"{h}:{h.fuu.aa}:{h.fuu.hoo.bb}:{h.fuu.hoo.yuu.zzz.h}:{h.fuu.hoo.yuu.yuu2.h}");
+            this.dest = h;
         }
     }
 }

@@ -25,6 +25,24 @@ MonoBehaviour:
           h: 5
         yuu2:
           h: 4
-  ValueArray: 
-  ValueList: 
-  fuuArray: []
+  ValueArray: 0200000003000000040000000500000000000000
+  ValueList: 00000000000000000000000000000000
+  fuuArray:
+  - aa: 41
+    hoo:
+      bb: 0
+      yuu:
+        aaa: 0
+        zzz:
+          h: 0
+        yuu2:
+          h: 333333
+  - aa: 53
+    hoo:
+      bb: 0
+      yuu:
+        aaa: 0
+        zzz:
+          h: 0
+        yuu2:
+          h: 999999

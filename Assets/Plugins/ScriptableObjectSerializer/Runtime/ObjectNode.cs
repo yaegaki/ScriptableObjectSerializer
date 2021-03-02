@@ -18,21 +18,24 @@ namespace ScriptableObjectSerializer
         {
             if (type == null) throw new ArgumentNullException(nameof(type));
 
-            if (type == typeof(int))
+            if (Match<int>(type))
             {
                 return NodeType.Int;
             }
-            else if (type == typeof(uint))
+            else if (Match<uint>(type))
             {
                 return NodeType.UInt;
             }
-            else if (type == typeof(string))
+            else if (Match<string>(type))
             {
                 return NodeType.String;
             }
 
             return NodeType.Complex;
         }
+
+        private static bool Match<T>(Type t)
+            => t == typeof(T) || t == typeof(T[]) || t == typeof(List<T>);
     }
 
     public interface IObjectNode
@@ -62,7 +65,11 @@ namespace ScriptableObjectSerializer
 
     public class ComplexObjectNode : IObjectNode
     {
-        public NodeType Type => NodeType.Complex;
+        /// <summary>
+        /// If this node is not list, this represents SelfType.
+        /// Otherwise this represents ElementType.
+        /// </summary>
+        public NodeType Type { get; }
         public string Name { get; }
         public object Value => null;
         public bool IsList { get; }
@@ -70,8 +77,19 @@ namespace ScriptableObjectSerializer
         public bool IsNull { get; }
         public IReadOnlyList<IObjectNode> Children { get; }
 
-        public ComplexObjectNode(string name, bool isList, int listCount, bool isNull, IEnumerable<IObjectNode> children)
+        public ComplexObjectNode(string name, bool isNull, IEnumerable<IObjectNode> children)
+            : this(NodeType.Complex, name, false, 0, isNull, children)
         {
+        }
+
+        public ComplexObjectNode(NodeType type, string name, int listCount, bool isNull, IEnumerable<IObjectNode> children)
+            : this(type, name, true, listCount, isNull, children)
+        {
+        }
+
+        private ComplexObjectNode(NodeType type, string name, bool isList, int listCount, bool isNull, IEnumerable<IObjectNode> children)
+        {
+            this.Type = type;
             this.Name = name;
             this.IsList = isList;
             this.ListCount = listCount;

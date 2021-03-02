@@ -47,6 +47,7 @@ namespace ScriptableObjectSerializer
             if (entry.entries == null) return null;
 
             var entries = entry.entries
+                .OrderBy(e => e.n, StringComparer.Ordinal)
                 .Select(e => new ComplexEntryWithPath
                 {
                     path = e.n.Split('/'),
@@ -75,20 +76,42 @@ namespace ScriptableObjectSerializer
                     var list = new List<IObjectNode>();
                     if (currentEntry != null)
                     {
-                        if (currentEntry.nil)
-                        {
-                            return new ComplexObjectNode(g.Key, false, 0, true, null);
-                        }
-
                         if (currentEntry.i32 != null)
                         {
                             list.AddRange(currentEntry.i32.Select(e => new PrimitiveObjectNode(NodeType.Int, e.n, e.v)));
+                        }
+
+                        if (currentEntry.i32a != null)
+                        {
+                            var children = currentEntry.i32a.Select(e =>
+                            {
+                                if (e.nil || e.v == null)
+                                {
+                                    return new ComplexObjectNode(NodeType.Int, e.n, 0, true, null);
+                                }
+
+                                var elemNodes = e.v.Select(ee => new PrimitiveObjectNode(NodeType.Int, ee.n, ee.v)).OrderBy(n => n.Name, StringComparer.Ordinal);
+                                return new ComplexObjectNode(NodeType.Int, e.n, e.c, false, elemNodes);
+                            });
+                            list.AddRange(children);
                         }
                     }
 
                     list.AddRange(Grouping(group.Where(e => e.entry != currentEntry), nextDepth));
                     list.Sort((x, y) => string.CompareOrdinal(x.Name, y.Name));
-                    return new ComplexObjectNode(g.Key, false, 0, false, list);
+                    var firstEntry = group[0];
+                    if (currentEntry == null)
+                    {
+                        return new ComplexObjectNode(g.Key, false, list);
+                    }
+                    else if (currentEntry.list)
+                    {
+                        return new ComplexObjectNode(NodeType.Complex, g.Key, currentEntry.listc, currentEntry.nil, list);
+                    }
+                    else
+                    {
+                        return new ComplexObjectNode(g.Key, currentEntry.nil, list);
+                    }
                 });
         }
 
@@ -99,12 +122,18 @@ namespace ScriptableObjectSerializer
             ToEntry(entries, null, obj);
             return new RootEntry
             {
-                entries = entries.ToArray(),
+                entries = entries,
             };
         }
 
         private void ToEntry(List<ComplexEntry> entries, ComplexEntry parent, IObjectNode obj)
         {
+            if (obj.IsList)
+            {
+                ToEntryForList(entries, parent, obj);
+                return;
+            }
+
             switch (obj.Type)
             {
                 case NodeType.Int:
@@ -130,6 +159,42 @@ namespace ScriptableObjectSerializer
             }
         }
 
+        private void ToEntryForList(List<ComplexEntry> entries, ComplexEntry parent, IObjectNode obj)
+        {
+            switch (obj.Type)
+            {
+                case NodeType.Int:
+                    if (parent.i32a == null) parent.i32a = new List<IntListEntry>();
+                    parent.i32a.Add(new IntListEntry
+                    {
+                        n = obj.Name,
+                        c = obj.ListCount,
+                        nil = obj.IsNull,
+                        v = obj.Children.Select(c => new IntEntry
+                        {
+                            n = c.Name,
+                            v = (int)c.Value,
+                        }).ToList(),
+                    });
+                    break;
+                case NodeType.Complex:
+                    var name = parent == null ? RootName : (parent.n + "/" + obj.Name);
+                    var self = new ComplexEntry
+                    {
+                        n = name,
+                        nil = obj.IsNull,
+                        list = obj.IsList,
+                        listc = obj.ListCount,
+                    };
+                    entries.Add(self);
+                    foreach (var n in obj.Children)
+                    {
+                        ToEntry(entries, self, n);
+                    }
+                    break;
+            }
+        }
+
         struct ComplexEntryWithPath
         {
             public string[] path;
@@ -139,7 +204,7 @@ namespace ScriptableObjectSerializer
         [Serializable]
         struct RootEntry
         {
-            public ComplexEntry[] entries;
+            public List<ComplexEntry> entries;
         }
 
         [Serializable]
@@ -149,14 +214,31 @@ namespace ScriptableObjectSerializer
             /// Name
             /// </summary>
             public string n;
+
             /// <summary>
             /// IsNull(nil)
             /// </summary>
             public bool nil;
+
+            /// <summary>
+            /// IsList
+            /// </summary>
+            public bool list;
+
+            /// <summary>
+            /// ListCount
+            /// </summary>
+            public int listc;
+
             /// <summary>
             /// IntValues
             /// </summary>
             public List<IntEntry> i32;
+
+            /// <summary>
+            /// IntList
+            /// </summary>
+            public List<IntListEntry> i32a;
         }
 
 
@@ -167,10 +249,35 @@ namespace ScriptableObjectSerializer
             /// Name
             /// </summary>
             public string n;
+
             /// <summary>
             /// Value
             /// </summary>
             public int v;
+        }
+
+        [Serializable]
+        struct IntListEntry
+        {
+            /// <summary>
+            /// Name
+            /// </summary>
+            public string n;
+
+            /// <summary>
+            /// Count
+            /// </summary>
+            public int c;
+
+            /// <summary>
+            /// IsNull(nil)
+            /// </summary>
+            public bool nil;
+
+            /// <summary>
+            /// Value
+            /// </summary>
+            public List<IntEntry> v;
         }
     }
 }
