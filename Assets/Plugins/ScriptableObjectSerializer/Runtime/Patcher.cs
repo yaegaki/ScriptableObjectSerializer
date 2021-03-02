@@ -230,7 +230,7 @@ namespace ScriptableObjectSerializer
             var create = instance == null;
             if (create)
             {
-                instance = Activator.CreateInstance(this.type);
+                instance = ReflectionHelper.CreateInstance(this.type);
             }
 
             PatchTo(instance, patch);
@@ -337,24 +337,8 @@ namespace ScriptableObjectSerializer
             var list = this.fieldInfo.GetValue(parent) as IList;
             if (list == null || list.Count != node.ListCount)
             {
-                list = Activator.CreateInstance(this.fieldInfo.FieldType, new object[] { node.ListCount }) as IList;
+                list = ReflectionHelper.CreateArrayOrList(this.fieldInfo.FieldType, node.ListCount);
                 if (list == null) return;
-                if (this.fieldInfo.FieldType.IsArray)
-                {
-                    var elemType = this.fieldInfo.FieldType.GetElementType();
-                    for (var i = 0; i < node.ListCount; i++)
-                    {
-                        list[i] = Activator.CreateInstance(elemType);
-                    }
-                }
-                else
-                {
-                    var elemType = this.fieldInfo.FieldType.GenericTypeArguments[0];
-                    for (var i = 0; i < node.ListCount; i++)
-                    {
-                        list.Add(Activator.CreateInstance(elemType));
-                    }
-                }
                 this.fieldInfo.SetValue(parent, list);
             }
 

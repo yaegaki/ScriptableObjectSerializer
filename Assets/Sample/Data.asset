@@ -14,6 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hogehoge: 44
   fugafuga: 2
+  str: "\u3042aaa"
+  strArray:
+  - "\u3044iii"
+  - "\u3046uuu"
+  - "\u3048eee"
   piyopiyo: 32
   fuu:
     aa: 55

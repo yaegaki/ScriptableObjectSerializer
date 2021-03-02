@@ -11,6 +11,12 @@ public class Hoge : ScriptableObject
     [SerializeField]
     private int fugafuga;
 
+    [SerializeField]
+    private string str;
+
+    [SerializeField]
+    private string[] strArray;
+
     public int piyopiyo;
 
     public Fuu fuu;

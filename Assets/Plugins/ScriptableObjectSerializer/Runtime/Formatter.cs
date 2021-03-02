@@ -76,25 +76,33 @@ namespace ScriptableObjectSerializer
                     var list = new List<IObjectNode>();
                     if (currentEntry != null)
                     {
-                        if (currentEntry.i32 != null)
+                        void AddPrimitiveNode<T>(List<T> entry, NodeType nodeType) where T : IValueEntry
                         {
-                            list.AddRange(currentEntry.i32.Select(e => new PrimitiveObjectNode(NodeType.Int, e.n, e.v)));
+                            if (entry == null) return;
+                            list.AddRange(entry.Select(e => new PrimitiveObjectNode(nodeType, e.Name, e.Value)));
                         }
 
-                        if (currentEntry.i32a != null)
+                        void AddListNodes<T>(List<T> entry, NodeType nodeType) where T : IListEntry
                         {
-                            var children = currentEntry.i32a.Select(e =>
+                            if (entry == null) return;
+                            var children = entry.Select(e =>
                             {
-                                if (e.nil || e.v == null)
+                                var v = e.Value;
+                                if (e.IsNull || v == null)
                                 {
-                                    return new ComplexObjectNode(NodeType.Int, e.n, 0, true, null);
+                                    return new ComplexObjectNode(nodeType, e.Name, 0, true, null);
                                 }
 
-                                var elemNodes = e.v.Select(ee => new PrimitiveObjectNode(NodeType.Int, ee.n, ee.v)).OrderBy(n => n.Name, StringComparer.Ordinal);
-                                return new ComplexObjectNode(NodeType.Int, e.n, e.c, false, elemNodes);
+                                var elemNodes = v.Select(ee => new PrimitiveObjectNode(nodeType, ee.Name, ee.Value)).OrderBy(n => n.Name, StringComparer.Ordinal);
+                                return new ComplexObjectNode(nodeType, e.Name, e.Count, false, elemNodes);
                             });
                             list.AddRange(children);
                         }
+
+                        AddPrimitiveNode(currentEntry.i32, NodeType.Int);
+                        AddPrimitiveNode(currentEntry.s, NodeType.String);
+                        AddListNodes(currentEntry.i32a, NodeType.Int);
+                        AddListNodes(currentEntry.sa, NodeType.String);
                     }
 
                     list.AddRange(Grouping(group.Where(e => e.entry != currentEntry), nextDepth));
@@ -144,6 +152,14 @@ namespace ScriptableObjectSerializer
                         v = (int)obj.Value,
                     });
                     break;
+                case NodeType.String:
+                    if (parent.s == null) parent.s = new List<StringEntry>();
+                    parent.s.Add(new StringEntry
+                    {
+                        n = obj.Name,
+                        v = (string)obj.Value,
+                    });
+                    break;
                 case NodeType.Complex:
                     var name = parent == null ? RootName : (parent.n + "/" + obj.Name);
                     var self = new ComplexEntry
@@ -174,6 +190,20 @@ namespace ScriptableObjectSerializer
                         {
                             n = c.Name,
                             v = (int)c.Value,
+                        }).ToList(),
+                    });
+                    break;
+                case NodeType.String:
+                    if (parent.sa == null) parent.sa = new List<StringListEntry>();
+                    parent.sa.Add(new StringListEntry
+                    {
+                        n = obj.Name,
+                        c = obj.ListCount,
+                        nil = obj.IsNull,
+                        v = obj.Children.Select(c => new StringEntry
+                        {
+                            n = c.Name,
+                            v = (string)c.Value,
                         }).ToList(),
                     });
                     break;
@@ -239,11 +269,27 @@ namespace ScriptableObjectSerializer
             /// IntList
             /// </summary>
             public List<IntListEntry> i32a;
+
+            /// <summary>
+            /// StringValues
+            /// </summary>
+            public List<StringEntry> s;
+
+            /// <summary>
+            /// StringList
+            /// </summary>
+            public List<StringListEntry> sa;
+        }
+
+        interface IValueEntry
+        {
+            string Name { get; }
+            object Value { get; }
         }
 
 
         [Serializable]
-        struct IntEntry
+        struct IntEntry : IValueEntry
         {
             /// <summary>
             /// Name
@@ -254,10 +300,21 @@ namespace ScriptableObjectSerializer
             /// Value
             /// </summary>
             public int v;
+
+            public string Name => n;
+            public object Value => v;
+        }
+
+        interface IListEntry
+        {
+            string Name { get; }
+            int Count { get; }
+            bool IsNull { get; }
+            IEnumerable<IValueEntry> Value { get; }
         }
 
         [Serializable]
-        struct IntListEntry
+        struct IntListEntry : IListEntry
         {
             /// <summary>
             /// Name
@@ -278,6 +335,57 @@ namespace ScriptableObjectSerializer
             /// Value
             /// </summary>
             public List<IntEntry> v;
+
+            public string Name => n;
+            public int Count => c;
+            public bool IsNull => nil;
+            public IEnumerable<IValueEntry> Value => v?.OfType<IValueEntry>();
+        }
+
+        [Serializable]
+        struct StringEntry : IValueEntry
+        {
+            /// <summary>
+            /// Name
+            /// </summary>
+            public string n;
+
+            /// <summary>
+            /// Value
+            /// </summary>
+            public string v;
+
+            public string Name => n;
+            public object Value => v;
+        }
+
+        [Serializable]
+        struct StringListEntry : IListEntry
+        {
+            /// <summary>
+            /// Name
+            /// </summary>
+            public string n;
+
+            /// <summary>
+            /// Count
+            /// </summary>
+            public int c;
+
+            /// <summary>
+            /// IsNull(nil)
+            /// </summary>
+            public bool nil;
+
+            /// <summary>
+            /// Value
+            /// </summary>
+            public List<StringEntry> v;
+
+            public string Name => n;
+            public int Count => c;
+            public bool IsNull => nil;
+            public IEnumerable<IValueEntry> Value => v?.OfType<IValueEntry>();
         }
     }
 }
