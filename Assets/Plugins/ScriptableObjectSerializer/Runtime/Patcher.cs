@@ -1,16 +1,14 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using UnityEngine;
 
 namespace ScriptableObjectSerializer
 {
     public interface IPatcher
     {
-        void PatchTo(object obj, IObjectNode patch);
-        IObjectNode PatchFrom(object obj);
+        void PatchTo(ref object obj, IObjectNode patch);
+        IObjectNode PatchFrom(object obj, string name);
     }
 
     public static class Patcher
@@ -19,179 +17,135 @@ namespace ScriptableObjectSerializer
             => Create(typeof(T));
 
         public static IPatcher Create(Type type)
-            => Create(":Root:", null, type);
+            => new ComplexPatcher(type);
+    }
 
-        private static IReflectionPatcher Create(string name, IValueAccessor valueAccessor, Type fieldType)
+    class PrimitivePatcher : IPatcher
+    {
+        private readonly Type type;
+        private readonly NodeType nodeType;
+
+        public PrimitivePatcher(Type type, NodeType nodeType)
         {
-            var nodeType = fieldType.ToNodeType();
-            if (nodeType != NodeType.Complex) return null;
-
-            var flags = BindingFlags.FlattenHierarchy | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
-            var children = fieldType.GetFields(flags)
-                .Where(IsSerializeField)
-                .Where(f => IsSerializableType(f.FieldType, false))
-                .OrderBy(f => f.Name, StringComparer.Ordinal)
-                .Select(CreateChildPatcher)
-                .Where(p => p != null);
-            
-            return new ComplexPatcher(name, valueAccessor, fieldType, nodeType, children);
+            this.type = type;
+            this.nodeType = nodeType;
         }
 
-        private static bool IsSerializeField(FieldInfo fieldInfo)
+        public void PatchTo(ref object obj, IObjectNode patch)
         {
-            if (fieldInfo.IsPublic)
+            // string is only nullable primitive type.
+            if (obj == null && this.nodeType != NodeType.String) return;
+            if (this.nodeType != patch.Type) return;
+
+            if (patch.IsNull)
             {
-                return fieldInfo.GetCustomAttribute<NonSerializedAttribute>() == null;
+                if (this.nodeType == NodeType.String)
+                {
+                    obj = null;
+                }
+                return;
             }
 
-            return fieldInfo.GetCustomAttribute<SerializeField>() != null;
+            obj = patch.Value;
         }
 
-        private static bool IsSerializableType(Type type, bool isTypeArg)
+        public IObjectNode PatchFrom(object obj, string name)
         {
-            if (type.GetCustomAttribute<SerializableAttribute>() == null) return false;
-
-            if (type.IsGenericType)
+            if (obj == null)
             {
-                // Can't serialize nested generic type
-                // ex) List<List<int>>
-                if (isTypeArg) return false;
+                if (this.nodeType == NodeType.String)
+                {
+                    return new PrimitiveObjectNode(NodeType.String, name, null);
+                }
 
-                if (type.GetGenericTypeDefinition() != typeof(List<>)) return false;
-                var typeArg = type.GenericTypeArguments[0];
-                if (!IsSerializableType(typeArg, true)) return false;
+                return null;
             }
 
-            if (type.IsArray)
+            if (obj.GetType().ToNodeType() != this.nodeType)
             {
-                if (isTypeArg) return false;
-                var elemType = type.GetElementType();
-                if (!IsSerializableType(elemType, true)) return false;
+                return null;
             }
 
-            return true;
+            return new PrimitiveObjectNode(this.nodeType, name, obj);
+        }
+    }
+
+    class ComplexPatcher : IPatcher
+    {
+        private readonly Type type;
+        private readonly PatcherInfo[] childPatchers;
+
+        readonly struct PatcherInfo
+        {
+            public bool IsValid => Patcher != null;
+            public string Name => FieldInfo.Name;
+
+            public readonly FieldInfo FieldInfo;
+            public readonly IPatcher Patcher;
+
+            public PatcherInfo(FieldInfo fieldInfo, IPatcher patcher)
+                => (this.FieldInfo, this.Patcher) = (fieldInfo, patcher);
+
+            public void SetValue(object parent, IObjectNode patch)
+            {
+                var instance = this.FieldInfo.GetValue(parent);
+                this.Patcher.PatchTo(ref instance, patch);
+                this.FieldInfo.SetValue(parent, instance);
+            }
         }
 
-        private static IReflectionPatcher CreateChildPatcher(FieldInfo fieldInfo)
+        public ComplexPatcher(Type type)
+        {
+            this.type = type;
+            this.childPatchers = ReflectionHelper.GetAllFields(type)
+                .Where(SerializeHelper.IsSerializable)
+                .Select(CreatePatcher)
+                .Where(p => p.IsValid)
+                .OrderBy(p => p.Name, StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        private PatcherInfo CreatePatcher(FieldInfo fieldInfo)
         {
             var type = fieldInfo.FieldType;
             var nodeType = type.ToNodeType();
             if (type.IsArray || type.IsGenericType)
             {
-                var elemType = type.IsArray ? type.GetElementType() : type.GenericTypeArguments.First();
-                var valueAccessor = new ListIndexValueAccesor(type, elemType);
-                IReflectionPatcher childPatcher;
-                if (nodeType == NodeType.Complex)
-                {
-                    childPatcher = Create(fieldInfo.Name, valueAccessor, elemType);
-                }
-                else
-                {
-                    childPatcher = new PrimitivePatcher(fieldInfo.Name, valueAccessor, nodeType);
-                }
-
-                return new ListPatcher(fieldInfo.Name, fieldInfo, nodeType, childPatcher);
+                return new PatcherInfo(fieldInfo, new ListPatcher(type, nodeType));
             }
 
             if (nodeType == NodeType.Complex)
             {
-                return Create(fieldInfo.Name, new FieldInfoValueAccessor(fieldInfo), fieldInfo.FieldType);
+                return new PatcherInfo(fieldInfo, new ComplexPatcher(fieldInfo.FieldType));
             }
 
-            return new PrimitivePatcher(fieldInfo.Name, new FieldInfoValueAccessor(fieldInfo), nodeType);
-        }
-    }
-
-    interface IReflectionPatcher : IPatcher
-    {
-        string Name { get; }
-        object GetValue(object parent);
-        void SetValue(object parent, IObjectNode node);
-        IObjectNode PatchFrom(object obj, string name);
-    }
-
-    class PrimitivePatcher : IReflectionPatcher
-    {
-        public string Name { get; }
-        private readonly IValueAccessor valueAccessor;
-        private readonly NodeType nodeType;
-
-        public PrimitivePatcher(string name, IValueAccessor valueAccessor, NodeType nodeType)
-        {
-            this.Name = name;
-            this.valueAccessor = valueAccessor;
-            this.nodeType = nodeType;
+            return new PatcherInfo(fieldInfo, new PrimitivePatcher(fieldInfo.FieldType, nodeType));
         }
 
-        public void PatchTo(object obj, IObjectNode patch)
+        public void PatchTo(ref object obj, IObjectNode patch)
         {
-            // not supported
-            return;
-        }
-
-        public IObjectNode PatchFrom(object obj)
-            =>  PatchFrom(obj, this.Name);
-
-        public IObjectNode PatchFrom(object obj, string name)
-        {
-            if (obj == null) return null;
-            if (!this.valueAccessor.MatchChildType(obj)) return null;
-
-            return new PrimitiveObjectNode(this.nodeType, name, obj);
-        }
-
-        public object GetValue(object parent)
-        {
-            if (parent == null) return null;
-            if (!this.valueAccessor.MatchParentType(parent)) return null;
-            return this.valueAccessor.GetValue(parent);
-        }
-
-
-        public void SetValue(object parent, IObjectNode node)
-        {
-            if (this.nodeType != node.Type) return;
-            if (!this.valueAccessor.MatchParentType(parent)) return;
-            var v = node.Value;
-            if (v == null) return;
-            if (!this.valueAccessor.MatchChildType(v)) return;
-
-            this.valueAccessor.SetValue(parent, v);
-        }
-    }
-
-    class ComplexPatcher : IReflectionPatcher
-    {
-        public string Name { get; }
-        private readonly IValueAccessor valueAccessor;
-        private readonly Type type;
-        private readonly IReflectionPatcher[] children;
-
-        public ComplexPatcher(string name, IValueAccessor valueAccessor, Type type, NodeType nodeType, IEnumerable<IReflectionPatcher> children)
-        {
-            this.Name = name;
-            this.valueAccessor = valueAccessor;
-            this.type = type;
-            this.children = children?.ToArray() ?? Array.Empty<IReflectionPatcher>();
-        }
-
-        public void PatchTo(object obj, IObjectNode patch)
-        {
-            if (patch == null) return;
             if (patch.Type != NodeType.Complex) return;
             if (patch.IsList) return;
-            if (patch.IsNull) return;
+
+            if (patch.IsNull)
+            {
+                obj = null;
+                return;
+            }
+
+            if (obj == null)
+            {
+                obj = ReflectionHelper.CreateInstance(this.type);
+            }
 
             var index = 0;
             foreach (var childNode in patch.Children)
             {
-                var childPatcher = FindChildPatcher(ref index, childNode.Name);
-                childPatcher?.SetValue(obj, childNode);
+                var patcher = FindChildPatcher(ref index, childNode.Name);
+                if (!patcher.IsValid) continue;
+                patcher.SetValue(obj, childNode);
             }
         }
-
-        public IObjectNode PatchFrom(object obj)
-            => PatchFrom(obj, this.Name);
 
         public IObjectNode PatchFrom(object obj, string name)
         {
@@ -200,82 +154,82 @@ namespace ScriptableObjectSerializer
                 return new ComplexObjectNode(name, true, null);
             }
 
-            var childNodes = this.children
-                .Select(p => p.PatchFrom(p.GetValue(obj)))
+            var childNodes = this.childPatchers
+                .Select(p =>
+                {
+                    var v = p.FieldInfo.GetValue(obj);
+                    return p.Patcher.PatchFrom(v, p.Name);
+                })
                 .Where(c => c != null);
 
             return new ComplexObjectNode(name, false, childNodes);
         }
 
-        public object GetValue(object parent)
+        private PatcherInfo FindChildPatcher(ref int index, string name)
         {
-            if (parent == null) return null;
-            if (this.valueAccessor == null) return null;
-            if (!this.valueAccessor.MatchParentType(parent)) return null;
-            return this.valueAccessor.GetValue(parent);
-        }
-
-        public void SetValue(object parent, IObjectNode patch)
-        {
-            if (this.valueAccessor == null) return;
-            if (patch.Type != NodeType.Complex) return;
-
-            if (patch.IsNull)
+            for (; index < this.childPatchers.Length; index++)
             {
-                this.valueAccessor.SetValue(parent, null);
-                return;
-            }
-
-            var instance = this.valueAccessor.GetValue(parent);
-            var create = instance == null;
-            if (create)
-            {
-                instance = ReflectionHelper.CreateInstance(this.type);
-            }
-
-            PatchTo(instance, patch);
-
-            if (create || this.type.IsValueType)
-            {
-                this.valueAccessor.SetValue(parent, instance);
-            }
-        }
-
-        private IReflectionPatcher FindChildPatcher(ref int index, string name)
-        {
-            for (; index < this.children.Length; index++)
-            {
-                var childPatcher = this.children[index];
-                var comp = string.CompareOrdinal(childPatcher.Name, name);
+                var p = this.childPatchers[index];
+                var comp = string.CompareOrdinal(p.Name, name);
                 if (comp > 0) break;
                 if (comp == 0)
                 {
-                    index++;
-                    return childPatcher;
+                    return p;
                 }
             }
 
-            return null;
+            return default;
         }
     }
 
-    class ListPatcher : IReflectionPatcher
+    class ListPatcher : IPatcher
     {
-        public string Name { get; }
-        private readonly FieldInfo fieldInfo;
+        private readonly Type type;
         private readonly NodeType nodeType;
-        private readonly IReflectionPatcher childPatcher;
+        private readonly IPatcher childPatcher;
 
-        public ListPatcher(string name, FieldInfo fieldInfo, NodeType nodeType, IReflectionPatcher childPatcher)
+        public ListPatcher(Type type, NodeType nodeType)
         {
-            this.Name = name;
-            this.fieldInfo = fieldInfo;
+            this.type = type;
             this.nodeType = nodeType;
-            this.childPatcher = childPatcher;
+            this.childPatcher = CreatePatcher(type);
         }
 
-        public IObjectNode PatchFrom(object obj)
-            => PatchFrom(obj, this.Name);
+        private IPatcher CreatePatcher(Type listType)
+        {
+            var elemType = listType.IsArray ? listType.GetElementType() : listType.GenericTypeArguments.First();
+            var nodeType = elemType.ToNodeType();
+            if (nodeType == NodeType.Complex)
+            {
+                return new ComplexPatcher(elemType);
+            }
+
+            return new PrimitivePatcher(elemType, nodeType);
+        }
+
+        public void PatchTo(ref object obj, IObjectNode patch)
+        {
+            if (patch.Type != this.nodeType) return;
+            if (!patch.IsList) return;
+            if (patch.ListCount < 0) return;
+
+            if (obj == null)
+            {
+                obj = ReflectionHelper.CreateArrayOrList(this.type, patch.ListCount);
+            }
+
+            if (!(obj is IList list)) return;
+
+            foreach (var childNode in patch.Children)
+            {
+                if (!(int.TryParse(childNode.Name, out var index))) continue;
+                if (index < 0 || index >= list.Count) continue;
+
+                var v = list[index];
+                this.childPatcher.PatchTo(ref v, childNode);
+                list[index] = v;
+            }
+        }
 
         public IObjectNode PatchFrom(object obj, string name)
         {
@@ -292,70 +246,6 @@ namespace ScriptableObjectSerializer
                 .Where(c => c != null);
             
             return new ComplexObjectNode(this.nodeType, name, list.Count, false, children);
-        }
-
-        public void PatchTo(object obj, IObjectNode patch)
-        {
-            if (patch == null) return;
-            if (patch.Type != this.nodeType) return;
-            if (!patch.IsList) return;
-            if (patch.ListCount < 0) return;
-            if (patch.IsNull) return;
-            if (!(obj is IList list)) return;
-
-            ParentWithIndex p = null;
-            foreach (var childNode in patch.Children)
-            {
-                if (!(int.TryParse(childNode.Name, out var index))) continue;
-                if (index < 0 || index >= list.Count) continue;
-
-                if (p == null) p = new ParentWithIndex();
-                p.Index = index;
-                this.childPatcher.SetValue(p, childNode);
-            }
-        }
-
-        public object GetValue(object parent)
-        {
-            if (parent == null) return null;
-            if (!this.fieldInfo.DeclaringType.IsAssignableFrom(parent.GetType())) return null;
-            return this.fieldInfo.GetValue(parent);
-        }
-
-        public void SetValue(object parent, IObjectNode node)
-        {
-            if (!node.IsList) return;
-            if (node.ListCount < 0) return;
-            if (!this.fieldInfo.DeclaringType.IsAssignableFrom(parent.GetType())) return;
-
-            if (node.IsNull)
-            {
-                this.fieldInfo.SetValue(parent, null);
-                return;
-            }
-
-            var list = this.fieldInfo.GetValue(parent) as IList;
-            if (list == null || list.Count != node.ListCount)
-            {
-                list = ReflectionHelper.CreateArrayOrList(this.fieldInfo.FieldType, node.ListCount);
-                if (list == null) return;
-                this.fieldInfo.SetValue(parent, list);
-            }
-
-            ParentWithIndex p = null;
-            foreach (var child in node.Children)
-            {
-                if (!int.TryParse(child.Name, out var index)) continue;
-                if (index < 0 || index >= list.Count) continue;
-                if (p == null)
-                {
-                    p = new ParentWithIndex();
-                    p.Parent = list;
-                }
-
-                p.Index = index;
-                this.childPatcher.SetValue(p, child);
-            }
         }
     }
 }

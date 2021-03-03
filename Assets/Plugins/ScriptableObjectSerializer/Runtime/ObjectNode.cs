@@ -56,7 +56,7 @@ namespace ScriptableObjectSerializer
         public object Value { get;}
         public bool IsList => false;
         public int ListCount => 0;
-        public bool IsNull => false;
+        public bool IsNull => Value == null;
         public IReadOnlyList<IObjectNode> Children => Array.Empty<IObjectNode>();
 
         public PrimitiveObjectNode(NodeType type, string name, object value)

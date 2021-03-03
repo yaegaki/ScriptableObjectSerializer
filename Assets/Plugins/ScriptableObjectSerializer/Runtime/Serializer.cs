@@ -51,16 +51,17 @@ namespace ScriptableObjectSerializer
 
         public byte[] Serialize(T obj, IFormatterRegistry formatterRegistry)
         {
-            var patch = this.patcher.PatchFrom(obj);
+            var patch = this.patcher.PatchFrom(obj, ":Root:");
             return formatterRegistry.GetFormatter<T>().Serialize(patch);
         }
 
         public T Deserialize(byte[] bin, IFormatterRegistry formatterRegistry)
         {
             var patch = formatterRegistry.GetFormatter<T>().Deserialize(bin);
-            var obj = ScriptableObject.CreateInstance<T>();
-            this.patcher.PatchTo(obj, patch);
-            return obj;
+            var instance = ScriptableObject.CreateInstance<T>();
+            var obj = (object)instance;
+            this.patcher.PatchTo(ref obj, patch);
+            return instance;
         }
     }
 }

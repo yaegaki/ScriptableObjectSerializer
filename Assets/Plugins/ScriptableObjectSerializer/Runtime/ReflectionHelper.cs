@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Reflection;
 
 namespace ScriptableObjectSerializer
 {
@@ -33,6 +34,12 @@ namespace ScriptableObjectSerializer
             }
 
             return list;
+        }
+
+        public static FieldInfo[] GetAllFields(Type type)
+        {
+            var flags = BindingFlags.FlattenHierarchy | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+            return type.GetFields(flags);
         }
     }
 }
