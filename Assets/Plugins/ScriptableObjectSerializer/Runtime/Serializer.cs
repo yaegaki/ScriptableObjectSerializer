@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using ScriptableObjectSerializer.Patchers;
+using UnityEngine;
 
 namespace ScriptableObjectSerializer
 {
@@ -10,44 +11,46 @@ namespace ScriptableObjectSerializer
 
     public static class Serializer
     {
+        public static readonly IPatcherRegistry DefaultPatcherRegistry = PatcherRegistry.Instance;
         public static readonly IFormatterRegistry DefaultFormatterRegistry = JsonFormatterRegistry.Instance;
 
-        public static ISerializer<T> GetSerializer<T>()
+        public static ISerializer<T> GetSerializer<T>(IPatcherRegistry patcherRegistry)
             where T : ScriptableObject
-            => Serializer<T>.Instance;
+        {
+            if (patcherRegistry == DefaultPatcherRegistry)
+            {
+                return Serializer<T>.Default;
+            }
+
+            return new Serializer<T>(patcherRegistry);
+        }
 
         public static byte[] Serialize<T>(T obj)
             where T : ScriptableObject
-            => Serialize(obj, DefaultFormatterRegistry);
+            => Serialize(obj, DefaultPatcherRegistry, DefaultFormatterRegistry);
 
-        public static byte[] Serialize<T>(T obj, IFormatterRegistry formatterRegistry)
+        public static byte[] Serialize<T>(T obj, IPatcherRegistry patcherRegistry, IFormatterRegistry formatterRegistry)
             where T : ScriptableObject
-            => GetSerializer<T>().Serialize(obj, formatterRegistry);
+            => GetSerializer<T>(patcherRegistry).Serialize(obj, formatterRegistry);
 
         public static T Deserialize<T>(byte[] bin)
             where T : ScriptableObject
-            => Deserialize<T>(bin, DefaultFormatterRegistry);
+            => Deserialize<T>(bin, DefaultPatcherRegistry, DefaultFormatterRegistry);
         
-        public static T Deserialize<T>(byte[] bin, IFormatterRegistry formatterRegistry)
+        public static T Deserialize<T>(byte[] bin, IPatcherRegistry patcherRegistry, IFormatterRegistry formatterRegistry)
             where T : ScriptableObject
-            => GetSerializer<T>().Deserialize(bin, formatterRegistry);
+            => GetSerializer<T>(patcherRegistry).Deserialize(bin, formatterRegistry);
     }
 
-    class Serializer<T> : ISerializer<T>
+    public class Serializer<T> : ISerializer<T>
         where T : ScriptableObject
     {
-        public static readonly Serializer<T> Instance;
-
-        static Serializer()
-        {
-            Instance = new Serializer<T>();
-        }
+        public static readonly Serializer<T> Default = new Serializer<T>(PatcherRegistry.Instance);
 
         private readonly IPatcher patcher;
 
-
-        private Serializer()
-            => this.patcher = Patcher.Create<T>();
+        public Serializer(IPatcherRegistry patcherRegistry)
+            => this.patcher = Patcher.Create<T>(patcherRegistry);
 
         public byte[] Serialize(T obj, IFormatterRegistry formatterRegistry)
         {

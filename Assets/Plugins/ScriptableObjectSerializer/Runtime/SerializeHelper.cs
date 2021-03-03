@@ -7,13 +7,7 @@ namespace ScriptableObjectSerializer
 {
     public static class SerializeHelper
     {
-        public static bool IsSerializable(FieldInfo fieldInfo)
-        {
-            if (!IsSerializeField(fieldInfo)) return false;
-            return IsSerializableType(fieldInfo.FieldType, false);
-        }
-
-        private static bool IsSerializeField(FieldInfo fieldInfo)
+        public static bool IsSerializeField(FieldInfo fieldInfo)
         {
             if (fieldInfo.IsPublic)
             {
@@ -23,7 +17,11 @@ namespace ScriptableObjectSerializer
             return fieldInfo.GetCustomAttribute<SerializeField>() != null;
         }
 
-        private static bool IsSerializableType(Type type, bool isTypeArg)
+        public static bool IsSerializableType(Type type)
+            => IsSerializableType(type, false);
+
+
+        public static bool IsSerializableType(Type type, bool isTypeArg)
         {
             if (type.GetCustomAttribute<SerializableAttribute>() == null) return false;
 

@@ -1,25 +1,10 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
 
-namespace ScriptableObjectSerializer
+namespace ScriptableObjectSerializer.Patchers
 {
-    public interface IPatcher
-    {
-        void PatchTo(ref object obj, IObjectNode patch);
-        IObjectNode PatchFrom(object obj, string name);
-    }
-
-    public static class Patcher
-    {
-        public static IPatcher Create<T>()
-            => Create(typeof(T));
-
-        public static IPatcher Create(Type type)
-            => new ComplexPatcher(type);
-    }
-
     class PrimitivePatcher : IPatcher
     {
         private readonly Type type;
@@ -94,32 +79,15 @@ namespace ScriptableObjectSerializer
             }
         }
 
-        public ComplexPatcher(Type type)
+        public ComplexPatcher(Type type, IPatcherRegistry patcherRegistry)
         {
             this.type = type;
             this.childPatchers = ReflectionHelper.GetAllFields(type)
-                .Where(SerializeHelper.IsSerializable)
-                .Select(CreatePatcher)
+                .Where(SerializeHelper.IsSerializeField)
+                .Select(f => new PatcherInfo(f, patcherRegistry.CreatePatcher(f.FieldType)))
                 .Where(p => p.IsValid)
                 .OrderBy(p => p.Name, StringComparer.Ordinal)
                 .ToArray();
-        }
-
-        private PatcherInfo CreatePatcher(FieldInfo fieldInfo)
-        {
-            var type = fieldInfo.FieldType;
-            var nodeType = type.ToNodeType();
-            if (type.IsArray || type.IsGenericType)
-            {
-                return new PatcherInfo(fieldInfo, new ListPatcher(type, nodeType));
-            }
-
-            if (nodeType == NodeType.Complex)
-            {
-                return new PatcherInfo(fieldInfo, new ComplexPatcher(fieldInfo.FieldType));
-            }
-
-            return new PatcherInfo(fieldInfo, new PrimitivePatcher(fieldInfo.FieldType, nodeType));
         }
 
         public void PatchTo(ref object obj, IObjectNode patch)
@@ -188,23 +156,17 @@ namespace ScriptableObjectSerializer
         private readonly NodeType nodeType;
         private readonly IPatcher childPatcher;
 
-        public ListPatcher(Type type, NodeType nodeType)
+        public ListPatcher(Type type, NodeType nodeType, IPatcherRegistry patcherRegistry)
         {
             this.type = type;
             this.nodeType = nodeType;
-            this.childPatcher = CreatePatcher(type);
+            this.childPatcher = CreatePatcher(patcherRegistry);
         }
 
-        private IPatcher CreatePatcher(Type listType)
+        private IPatcher CreatePatcher(IPatcherRegistry patcherRegistry)
         {
-            var elemType = listType.IsArray ? listType.GetElementType() : listType.GenericTypeArguments.First();
-            var nodeType = elemType.ToNodeType();
-            if (nodeType == NodeType.Complex)
-            {
-                return new ComplexPatcher(elemType);
-            }
-
-            return new PrimitivePatcher(elemType, nodeType);
+            var elemType = this.type.IsArray ? this.type.GetElementType() : this.type.GenericTypeArguments.First();
+            return patcherRegistry.CreatePatcher(elemType);
         }
 
         public void PatchTo(ref object obj, IObjectNode patch)
