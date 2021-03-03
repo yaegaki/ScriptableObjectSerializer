@@ -47,14 +47,20 @@ namespace ScriptableObjectSerializer
     {
         public static readonly Serializer<T> Default = new Serializer<T>(PatcherRegistry.Instance);
 
+        private readonly IPatcherRegistry patcherRegistry;
         private readonly IPatcher patcher;
 
         public Serializer(IPatcherRegistry patcherRegistry)
-            => this.patcher = Patcher.Create<T>(patcherRegistry);
+        {
+            this.patcherRegistry = patcherRegistry;
+            this.patcher = patcherRegistry.CreatePatcher(typeof(T));
+        }
 
         public byte[] Serialize(T obj, IFormatterRegistry formatterRegistry)
         {
-            var patch = this.patcher.PatchFrom(obj, ":Root:");
+            var context = new PatchContext();
+            patcherRegistry.UseContext(context);
+            var patch = this.patcher.PatchFrom(context, obj, ":Root:");
             return formatterRegistry.GetFormatter<T>().Serialize(patch);
         }
 
@@ -63,7 +69,9 @@ namespace ScriptableObjectSerializer
             var patch = formatterRegistry.GetFormatter<T>().Deserialize(bin);
             var instance = ScriptableObject.CreateInstance<T>();
             var obj = (object)instance;
-            this.patcher.PatchTo(ref obj, patch);
+            var context = new PatchContext();
+            patcherRegistry.UseContext(context);
+            this.patcher.PatchTo(context, ref obj, patch);
             return instance;
         }
     }

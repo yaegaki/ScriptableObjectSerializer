@@ -25,5 +25,9 @@ namespace ScriptableObjectSerializer.Patchers
 
             return new PrimitivePatcher(type, nodeType);
         }
+
+        public void UseContext(PatchContext context)
+        {
+        }
     }
 }

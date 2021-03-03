@@ -16,7 +16,7 @@ namespace ScriptableObjectSerializer.Patchers
             this.nodeType = nodeType;
         }
 
-        public void PatchTo(ref object obj, IObjectNode patch)
+        public void PatchTo(PatchContext context, ref object obj, IObjectNode patch)
         {
             // string is only nullable primitive type.
             if (obj == null && this.nodeType != NodeType.String) return;
@@ -34,7 +34,7 @@ namespace ScriptableObjectSerializer.Patchers
             obj = patch.Value;
         }
 
-        public IObjectNode PatchFrom(object obj, string name)
+        public IObjectNode PatchFrom(PatchContext context, object obj, string name)
         {
             if (obj == null)
             {
@@ -71,10 +71,10 @@ namespace ScriptableObjectSerializer.Patchers
             public PatcherInfo(FieldInfo fieldInfo, IPatcher patcher)
                 => (this.FieldInfo, this.Patcher) = (fieldInfo, patcher);
 
-            public void SetValue(object parent, IObjectNode patch)
+            public void SetValue(PatchContext context, object parent, IObjectNode patch)
             {
                 var instance = this.FieldInfo.GetValue(parent);
-                this.Patcher.PatchTo(ref instance, patch);
+                this.Patcher.PatchTo(context, ref instance, patch);
                 this.FieldInfo.SetValue(parent, instance);
             }
         }
@@ -90,7 +90,7 @@ namespace ScriptableObjectSerializer.Patchers
                 .ToArray();
         }
 
-        public void PatchTo(ref object obj, IObjectNode patch)
+        public void PatchTo(PatchContext context, ref object obj, IObjectNode patch)
         {
             if (patch.Type != NodeType.Complex) return;
             if (patch.IsList) return;
@@ -111,11 +111,11 @@ namespace ScriptableObjectSerializer.Patchers
             {
                 var patcher = FindChildPatcher(ref index, childNode.Name);
                 if (!patcher.IsValid) continue;
-                patcher.SetValue(obj, childNode);
+                patcher.SetValue(context, obj, childNode);
             }
         }
 
-        public IObjectNode PatchFrom(object obj, string name)
+        public IObjectNode PatchFrom(PatchContext context, object obj, string name)
         {
             if (obj == null)
             {
@@ -126,7 +126,7 @@ namespace ScriptableObjectSerializer.Patchers
                 .Select(p =>
                 {
                     var v = p.FieldInfo.GetValue(obj);
-                    return p.Patcher.PatchFrom(v, p.Name);
+                    return p.Patcher.PatchFrom(context, v, p.Name);
                 })
                 .Where(c => c != null);
 
@@ -169,7 +169,7 @@ namespace ScriptableObjectSerializer.Patchers
             return patcherRegistry.CreatePatcher(elemType);
         }
 
-        public void PatchTo(ref object obj, IObjectNode patch)
+        public void PatchTo(PatchContext context, ref object obj, IObjectNode patch)
         {
             if (this.childPatcher == null) return;
 
@@ -190,12 +190,12 @@ namespace ScriptableObjectSerializer.Patchers
                 if (index < 0 || index >= list.Count) continue;
 
                 var v = list[index];
-                this.childPatcher.PatchTo(ref v, childNode);
+                this.childPatcher.PatchTo(context, ref v, childNode);
                 list[index] = v;
             }
         }
 
-        public IObjectNode PatchFrom(object obj, string name)
+        public IObjectNode PatchFrom(PatchContext context, object obj, string name)
         {
             if (this.childPatcher == null) return null;
 
@@ -208,7 +208,7 @@ namespace ScriptableObjectSerializer.Patchers
 
             var children = list
                 .OfType<object>()
-                .Select((c, i) => this.childPatcher.PatchFrom(c, i.ToString()))
+                .Select((c, i) => this.childPatcher.PatchFrom(context, c, i.ToString()))
                 .Where(c => c != null);
             
             return new ComplexObjectNode(this.nodeType, name, list.Count, false, children);

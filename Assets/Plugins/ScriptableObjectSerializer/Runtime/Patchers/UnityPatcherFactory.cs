@@ -13,6 +13,11 @@ namespace ScriptableObjectSerializer.Patchers
 
         public IPatcher CreatePatcher(Type type, IPatcherRegistry patcherRegistry)
             => new ScriptableObjectPatcher(type, patcherRegistry);
+
+        public void UseContext(PatchContext context)
+        {
+            context.Use<UnityPatchContext>(new UnityPatchContext());
+        }
     }
 }
 

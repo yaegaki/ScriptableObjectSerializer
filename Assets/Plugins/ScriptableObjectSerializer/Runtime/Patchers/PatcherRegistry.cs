@@ -6,6 +6,7 @@ namespace ScriptableObjectSerializer.Patchers
     public interface IPatcherRegistry
     {
         IPatcherFactory FindFactory(Type type);
+        void UseContext(PatchContext context);
     }
 
     public static class PatcherRegistryExtensions
@@ -26,5 +27,13 @@ namespace ScriptableObjectSerializer.Patchers
 
         public IPatcherFactory FindFactory(Type type)
             => patcherFactories.FirstOrDefault(f => f.IsSerializableType(type));
+        
+        public void UseContext(PatchContext context)
+        {
+            foreach (var f in this.patcherFactories)
+            {
+                f.UseContext(context);
+            }
+        }
     }
 }

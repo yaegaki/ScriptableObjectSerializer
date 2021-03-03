@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace ScriptableObjectSerializer.Patchers
@@ -11,6 +10,9 @@ namespace ScriptableObjectSerializer.Patchers
         private readonly IPatcherRegistry patcherRegistry;
 
         private static readonly string TypeNodeName = ":Type:";
+        private static readonly string ReferenceIdNodeName = ":ReferenceId:";
+        private static readonly string ReferenceToNodeName = ":ReferenceTo:";
+
         private static readonly object lockObj = new object();
         private static readonly Dictionary<Type, IPatcher> patcherCache = new Dictionary<Type, IPatcher>();
 
@@ -20,32 +22,62 @@ namespace ScriptableObjectSerializer.Patchers
             this.patcherRegistry = patcherRegistry;
         }
 
-        public IObjectNode PatchFrom(object obj, string name)
+        public IObjectNode PatchFrom(PatchContext context, object obj, string name)
         {
             if (obj == null)
             {
                 return new ComplexObjectNode(name, true, null);
             }
 
+            var unityPatchContext = context.Get<UnityPatchContext>();
+            var id = unityPatchContext.FindReferenceId(obj);
+            if (id >= 0)
+            {
+                return new ComplexObjectNode(name, false, new IObjectNode[]
+                {
+                    new PrimitiveObjectNode(NodeType.Int, ReferenceToNodeName, id),
+                });
+            }
+            id = unityPatchContext.Register(obj);
+
             var scriptableObjectType = obj?.GetType() ?? this.type;
             var patcher = GetPatcher(scriptableObjectType, this.patcherRegistry);
-            var patch = patcher?.PatchFrom(obj, name);
+            var patch = patcher?.PatchFrom(context, obj, name);
             if (patch == null) return null;
             if (patch.IsNull) return patch;
 
-
-            var childrenWithType = new List<IObjectNode>(patch.Children.Count + 1);
+            var childrenWithType = new List<IObjectNode>(patch.Children.Count + 2);
             childrenWithType.Add(new PrimitiveObjectNode(NodeType.String, TypeNodeName, scriptableObjectType.Name));
+            childrenWithType.Add(new PrimitiveObjectNode(NodeType.Int, ReferenceIdNodeName, id));
             childrenWithType.AddRange(patch.Children);
             return new ComplexObjectNode(name, false, childrenWithType);
         }
 
-        public void PatchTo(ref object obj, IObjectNode patch)
+        public void PatchTo(PatchContext context, ref object obj, IObjectNode patch)
         {
             if (patch.Type != NodeType.Complex) return;
+            if (patch.IsNull)
+            {
+                obj = null;
+                return;
+            }
 
-            var typeNode = patch.Children.FirstOrDefault(n => n.Name == TypeNodeName && n.Type == NodeType.String);
-            var typeName = typeNode?.Value as string ?? this.type.Name;
+            var unityPatchContext = context.Get<UnityPatchContext>();
+            var (typeName, id, referenceTo) = FindMetaInfo(patch);
+            if (referenceTo >= 0)
+            {
+                var temp = unityPatchContext.FindObject(referenceTo);
+                if (temp != null && this.type.IsAssignableFrom(temp.GetType()))
+                {
+                    obj = temp;
+                }
+                return;
+            }
+
+            if (string.IsNullOrEmpty(typeName))
+            {
+                typeName = this.type.Name;
+            }
 
             if (obj == null || obj.GetType().Name != typeName)
             {
@@ -53,8 +85,13 @@ namespace ScriptableObjectSerializer.Patchers
                 if (obj == null) return;
             }
 
+            if (id >= 0)
+            {
+                unityPatchContext.Register(id, obj);
+            }
+
             var patcher = GetPatcher(obj.GetType(), this.patcherRegistry);
-            patcher?.PatchTo(ref obj, patch);
+            patcher?.PatchTo(context, ref obj, patch);
         }
 
         private static IPatcher GetPatcher(Type type, IPatcherRegistry patcherRegistry)
@@ -66,6 +103,30 @@ namespace ScriptableObjectSerializer.Patchers
                 patcherCache[type] = patcher;
                 return patcher;
             }
+        }
+
+        private static (string type, int id, int referenceTo) FindMetaInfo(IObjectNode node)
+        {
+            var type = "";
+            var id = -1;
+            var referenceTo = -1;
+            foreach (var child in node.Children)
+            {
+                if (child.Name == TypeNodeName && child.Type == NodeType.String)
+                {
+                    type = (string)child.Value;
+                }
+                else if (child.Name == ReferenceIdNodeName && child.Type == NodeType.Int)
+                {
+                    id = (int)child.Value;
+                }
+                else if (child.Name == ReferenceToNodeName && child.Type == NodeType.Int)
+                {
+                    referenceTo = (int)child.Value;
+                }
+            }
+
+            return (type, id, referenceTo);
         }
     }
 }
