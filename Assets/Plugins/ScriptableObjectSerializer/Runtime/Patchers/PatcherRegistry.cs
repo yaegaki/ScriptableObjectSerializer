@@ -18,9 +18,10 @@ namespace ScriptableObjectSerializer.Patchers
     {
         public static readonly PatcherRegistry Instance = new PatcherRegistry();
 
-        private readonly IPatcherFactory[] patcherFactories = new[]
+        private readonly IPatcherFactory[] patcherFactories = new IPatcherFactory[]
         {
             new SystemPatcherFactory(),
+            new UnityPatcherFactory(),
         };
 
         public IPatcherFactory FindFactory(Type type)

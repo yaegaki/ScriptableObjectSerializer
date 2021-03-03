@@ -227,6 +227,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   hoge: {fileID: 11400000, guid: 7e5e216f940612d4dbe9e33e70d31ca8, type: 2}
+  dest: {fileID: 0}
+  piyo: {fileID: 11400000, guid: 718a1b5f6a521b9469feb55a148f6720, type: 2}
+  destPiyo: {fileID: 0}
 --- !u!1 &963194225
 GameObject:
   m_ObjectHideFlags: 0

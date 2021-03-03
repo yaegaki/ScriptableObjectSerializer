@@ -171,6 +171,8 @@ namespace ScriptableObjectSerializer.Patchers
 
         public void PatchTo(ref object obj, IObjectNode patch)
         {
+            if (this.childPatcher == null) return;
+
             if (patch.Type != this.nodeType) return;
             if (!patch.IsList) return;
             if (patch.ListCount < 0) return;
@@ -195,6 +197,8 @@ namespace ScriptableObjectSerializer.Patchers
 
         public IObjectNode PatchFrom(object obj, string name)
         {
+            if (this.childPatcher == null) return null;
+
             if (obj == null)
             {
                 return new ComplexObjectNode(this.nodeType, name, 0, true, null);

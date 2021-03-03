@@ -17,6 +17,12 @@ public class Creator : MonoBehaviour
     [SerializeField]
     private Hoge dest = default;
 
+    [SerializeField]
+    private Piyo piyo = default;
+
+    [SerializeField]
+    private Piyo destPiyo = default;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -27,12 +33,18 @@ public class Creator : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            var result = ScriptableObjectSerializer.Serializer.Serialize(this.hoge);
-            var json = Encoding.UTF8.GetString(result);
-            var h = ScriptableObjectSerializer.Serializer.Deserialize<Hoge>(result);
-            Debug.Log(json);
-            Debug.Log($"{h}:{h.fuu.aa}:{h.fuu.hoo.bb}:{h.fuu.hoo.yuu.zzz.h}:{h.fuu.hoo.yuu.yuu2.h}");
-            this.dest = h;
+            Test(hoge, ref dest);
+            Test(piyo, ref destPiyo);
         }
+    }
+
+    private void Test<T>(T t, ref T dest) where T : ScriptableObject
+    {
+        if (t == null) return;
+        var result = ScriptableObjectSerializer.Serializer.Serialize(t);
+        var json = Encoding.UTF8.GetString(result);
+        var h = ScriptableObjectSerializer.Serializer.Deserialize<T>(result);
+        Debug.Log(json);
+        dest = h;
     }
 }
