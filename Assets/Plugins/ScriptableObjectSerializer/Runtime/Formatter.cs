@@ -165,6 +165,7 @@ namespace ScriptableObjectSerializer
                     var self = new ComplexEntry
                     {
                         n = name,
+                        nil = obj.IsNull,
                     };
                     entries.Add(self);
                     foreach (var n in obj.Children)

@@ -94,7 +94,7 @@ namespace ScriptableObjectSerializer
             this.IsList = isList;
             this.ListCount = listCount;
             this.Children = children?.ToArray() ?? Array.Empty<IObjectNode>();
-            this.IsNull = false;
+            this.IsNull = isNull;
         }
     }
 }
