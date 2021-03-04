@@ -129,5 +129,18 @@ namespace ScriptableObjectSerializer.Patchers
             return (type, id, referenceTo);
         }
     }
+
+    public class GameObjectPatcher : IPatcher
+    {
+        public IObjectNode PatchFrom(PatchContext context, object obj, string name)
+        {
+            return null;
+        }
+
+        public void PatchTo(PatchContext context, ref object obj, IObjectNode patch)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }
 
