@@ -1,7 +1,7 @@
-﻿using ScriptableObjectSerializer.Patchers;
+﻿using UnityObjectSerializer.Patchers;
 using UnityEngine;
 
-namespace ScriptableObjectSerializer
+namespace UnityObjectSerializer
 {
     public interface ISerializer<T> where T : ScriptableObject
     {

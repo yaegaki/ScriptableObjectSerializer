@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace ScriptableObjectSerializer.Patchers
+namespace UnityObjectSerializer.Patchers
 {
     /// <summary>
     /// A PatcherFactory of dependent of Unity.

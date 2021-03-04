@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
-namespace ScriptableObjectSerializer
+namespace UnityObjectSerializer
 {
     public static class SerializeHelper
     {

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace ScriptableObjectSerializer.Patchers
+namespace UnityObjectSerializer.Patchers
 {
     public class ScriptableObjectPatcher : IPatcher
     {

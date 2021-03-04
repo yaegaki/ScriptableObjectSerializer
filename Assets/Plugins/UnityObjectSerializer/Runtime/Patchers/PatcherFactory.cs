@@ -1,6 +1,6 @@
 using System;
 
-namespace ScriptableObjectSerializer.Patchers
+namespace UnityObjectSerializer.Patchers
 {
     public interface IPatcherFactory
     {

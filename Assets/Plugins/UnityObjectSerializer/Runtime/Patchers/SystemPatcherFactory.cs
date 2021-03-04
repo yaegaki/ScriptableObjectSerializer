@@ -1,6 +1,6 @@
 using System;
 
-namespace ScriptableObjectSerializer.Patchers
+namespace UnityObjectSerializer.Patchers
 {
     /// <summary>
     /// A PatcherFactory of independent of Unity.

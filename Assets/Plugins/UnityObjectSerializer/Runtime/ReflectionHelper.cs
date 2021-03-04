@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Reflection;
 
-namespace ScriptableObjectSerializer
+namespace UnityObjectSerializer
 {
     public static class ReflectionHelper
     {

@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace ScriptableObjectSerializer.Patchers
+namespace UnityObjectSerializer.Patchers
 {
     public interface IPatcherRegistry
     {

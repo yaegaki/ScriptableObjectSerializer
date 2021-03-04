@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -41,9 +41,9 @@ public class Creator : MonoBehaviour
     private void Test<T>(T t, ref T dest) where T : ScriptableObject
     {
         if (t == null) return;
-        var result = ScriptableObjectSerializer.Serializer.Serialize(t);
+        var result = UnityObjectSerializer.Serializer.Serialize(t);
         var json = Encoding.UTF8.GetString(result);
-        var h = ScriptableObjectSerializer.Serializer.Deserialize<T>(result);
+        var h = UnityObjectSerializer.Serializer.Deserialize<T>(result);
         Debug.Log(json);
         dest = h;
     }

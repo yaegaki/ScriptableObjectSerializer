@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace ScriptableObjectSerializer.Patchers
+namespace UnityObjectSerializer.Patchers
 {
     public class UnityPatchContext
     {
