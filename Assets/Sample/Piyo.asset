@@ -16,3 +16,9 @@ MonoBehaviour:
   piyo: {fileID: 11400000, guid: 358d63c40d1dc6e4cb3d984386b91274, type: 2}
   index: 1
   f: 3.14
+  vec2: {x: 1, y: 2}
+  vec2i: {x: 3, y: 4}
+  vec3: {x: 5, y: 6, z: 7}
+  vec3i: {x: 8, y: 9, z: 10}
+  vec4: {x: 11, y: 12, z: 13, w: 14}
+  quat: {x: 15, y: 16, z: 17, w: 18}

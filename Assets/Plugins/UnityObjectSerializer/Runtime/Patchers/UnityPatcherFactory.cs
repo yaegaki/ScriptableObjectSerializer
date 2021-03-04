@@ -9,10 +9,34 @@ namespace UnityObjectSerializer.Patchers
     public class UnityPatcherFactory : IPatcherFactory
     {
         public bool IsSerializableType(Type type)
-            => typeof(ScriptableObject).IsAssignableFrom(type);
+        {
+            if (typeof(Vector2) == type) return true;
+            if (typeof(Vector3) == type) return true;
+            if (typeof(Vector4) == type) return true;
+            if (typeof(Quaternion) == type) return true;
+            if (typeof(Vector2Int) == type) return true;
+            if (typeof(Vector3Int) == type) return true;
+
+            return typeof(ScriptableObject).IsAssignableFrom(type);
+        }
 
         public IPatcher CreatePatcher(Type type, IPatcherRegistry patcherRegistry)
-            => new ScriptableObjectPatcher(type, patcherRegistry);
+        {
+            if (typeof(Vector2) == type ||
+                typeof(Vector3) == type ||
+                typeof(Vector4) == type ||
+                typeof(Quaternion) == type)
+            {
+                return new ComplexPatcher(type, patcherRegistry);
+            }
+
+            if (typeof(Vector2Int) == type || typeof(Vector3Int) == type)
+            {
+                return new VectorIntPatcher(type, typeof(Vector2Int) == type ? 2 : 3);
+            }
+
+            return new ScriptableObjectPatcher(type, patcherRegistry);
+        }
 
         public void UseContext(PatchContext context)
         {
@@ -20,4 +44,3 @@ namespace UnityObjectSerializer.Patchers
         }
     }
 }
-

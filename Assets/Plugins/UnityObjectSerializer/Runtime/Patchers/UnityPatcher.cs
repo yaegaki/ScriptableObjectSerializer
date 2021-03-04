@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 namespace UnityObjectSerializer.Patchers
@@ -142,5 +143,60 @@ namespace UnityObjectSerializer.Patchers
             throw new NotImplementedException();
         }
     }
-}
 
+    public class VectorIntPatcher : IPatcher
+    {
+        private readonly Type type;
+        private readonly Dictionary<string, PropertyInfo> propDict = new Dictionary<string, PropertyInfo>();
+
+        public VectorIntPatcher(Type type, int dimension)
+        {
+            this.type = type;
+            if (dimension >= 1) propDict["x"] = type.GetProperty("x");
+            if (dimension >= 2) propDict["y"] = type.GetProperty("y");
+            if (dimension >= 3) propDict["z"] = type.GetProperty("z");
+        }
+
+        public IObjectNode PatchFrom(PatchContext context, object obj, string name)
+        {
+            if (obj == null) return null;
+            if (obj.GetType() != this.type) return null;
+
+            return new ComplexObjectNode(name, false, CreateObjectNodes(obj));
+        }
+
+        private IEnumerable<IObjectNode> CreateObjectNodes(object parent)
+        {
+            var x = CreateObjectNode(parent, "x");
+            if (x != null) yield return x;
+            var y = CreateObjectNode(parent, "y");
+            if (y != null) yield return y;
+            var z = CreateObjectNode(parent, "z");
+            if (z != null) yield return z;
+        }
+
+        private IObjectNode CreateObjectNode(object parent, string name)
+        {
+            if (!this.propDict.TryGetValue(name, out var propInfo)) return null;
+            var v = propInfo.GetValue(parent);
+            if (v == null) return null;
+            if (v.GetType() != typeof(int)) return null;
+            return new PrimitiveObjectNode(NodeType.Int, name, v);
+        }
+
+        public void PatchTo(PatchContext context, ref object obj, IObjectNode patch)
+        {
+            if (obj == null) return;
+            if (patch.IsNull) return;
+            if (patch.Type != NodeType.Complex) return;
+            if (obj.GetType() != this.type) return;
+
+            foreach (var node in patch.Children)
+            {
+                if (node.Type != NodeType.Int) continue;
+                if (!propDict.TryGetValue(node.Name, out var prop)) continue;
+                prop.SetValue(obj, node.Value);
+            }
+        }
+    }
+}
