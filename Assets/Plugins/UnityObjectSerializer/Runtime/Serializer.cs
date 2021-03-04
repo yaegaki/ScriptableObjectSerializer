@@ -1,9 +1,8 @@
 ﻿using UnityObjectSerializer.Patchers;
-using UnityEngine;
 
 namespace UnityObjectSerializer
 {
-    public interface ISerializer<T> where T : ScriptableObject
+    public interface ISerializer<T>
     {
         byte[] Serialize(T obj, IFormatterRegistry formatterRegistry);
         T Deserialize(byte[] obj, IFormatterRegistry formatterRegistry);
@@ -15,7 +14,6 @@ namespace UnityObjectSerializer
         public static readonly IFormatterRegistry DefaultFormatterRegistry = JsonFormatterRegistry.Instance;
 
         public static ISerializer<T> GetSerializer<T>(IPatcherRegistry patcherRegistry)
-            where T : ScriptableObject
         {
             if (patcherRegistry == DefaultPatcherRegistry)
             {
@@ -26,24 +24,19 @@ namespace UnityObjectSerializer
         }
 
         public static byte[] Serialize<T>(T obj)
-            where T : ScriptableObject
             => Serialize(obj, DefaultPatcherRegistry, DefaultFormatterRegistry);
 
         public static byte[] Serialize<T>(T obj, IPatcherRegistry patcherRegistry, IFormatterRegistry formatterRegistry)
-            where T : ScriptableObject
             => GetSerializer<T>(patcherRegistry).Serialize(obj, formatterRegistry);
 
         public static T Deserialize<T>(byte[] bin)
-            where T : ScriptableObject
             => Deserialize<T>(bin, DefaultPatcherRegistry, DefaultFormatterRegistry);
         
         public static T Deserialize<T>(byte[] bin, IPatcherRegistry patcherRegistry, IFormatterRegistry formatterRegistry)
-            where T : ScriptableObject
             => GetSerializer<T>(patcherRegistry).Deserialize(bin, formatterRegistry);
     }
 
     public class Serializer<T> : ISerializer<T>
-        where T : ScriptableObject
     {
         public static readonly Serializer<T> Default = new Serializer<T>(PatcherRegistry.Instance);
 
@@ -67,12 +60,14 @@ namespace UnityObjectSerializer
         public T Deserialize(byte[] bin, IFormatterRegistry formatterRegistry)
         {
             var patch = formatterRegistry.GetFormatter<T>().Deserialize(bin);
-            var instance = ScriptableObject.CreateInstance<T>();
-            var obj = (object)instance;
             var context = new PatchContext();
             patcherRegistry.UseContext(context);
+            object obj = null;
             this.patcher.PatchTo(context, ref obj, patch);
-            return instance;
+            if (obj == null) return default;
+            if (!typeof(T).IsAssignableFrom(obj.GetType())) return default;
+
+            return (T)obj;
         }
     }
 }
