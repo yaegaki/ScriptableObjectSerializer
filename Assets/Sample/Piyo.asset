@@ -15,3 +15,4 @@ MonoBehaviour:
   hoge: {fileID: 11400000, guid: 7e5e216f940612d4dbe9e33e70d31ca8, type: 2}
   piyo: {fileID: 11400000, guid: 358d63c40d1dc6e4cb3d984386b91274, type: 2}
   index: 1
+  f: 3.14

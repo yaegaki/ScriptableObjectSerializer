@@ -8,6 +8,7 @@ namespace UnityObjectSerializer
     {
         Int,
         UInt,
+        Float,
         String,
         Complex,
     }
@@ -25,6 +26,10 @@ namespace UnityObjectSerializer
             else if (Match<uint>(type))
             {
                 return NodeType.UInt;
+            }
+            else if (Match<float>(type))
+            {
+                return NodeType.Float;
             }
             else if (Match<string>(type))
             {

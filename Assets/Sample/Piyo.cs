@@ -10,4 +10,6 @@ public class Piyo : ScriptableObject
     private Piyo piyo = default;
     [SerializeField]
     private int index = default;
+    [SerializeField]
+    private float f = default;
 }

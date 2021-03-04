@@ -100,8 +100,10 @@ namespace UnityObjectSerializer
                         }
 
                         AddPrimitiveNode(currentEntry.i32, NodeType.Int);
+                        AddPrimitiveNode(currentEntry.f, NodeType.Float);
                         AddPrimitiveNode(currentEntry.s, NodeType.String);
                         AddListNodes(currentEntry.i32a, NodeType.Int);
+                        AddListNodes(currentEntry.fa, NodeType.Float);
                         AddListNodes(currentEntry.sa, NodeType.String);
                     }
 
@@ -152,6 +154,14 @@ namespace UnityObjectSerializer
                         v = (int)obj.Value,
                     });
                     break;
+                case NodeType.Float:
+                    if (parent.f == null) parent.f = new List<FloatEntry>();
+                    parent.f.Add(new FloatEntry
+                    {
+                        n = obj.Name,
+                        v = (float)obj.Value,
+                    });
+                    break;
                 case NodeType.String:
                     if (parent.s == null) parent.s = new List<StringEntry>();
                     parent.s.Add(new StringEntry
@@ -191,6 +201,20 @@ namespace UnityObjectSerializer
                         {
                             n = c.Name,
                             v = (int)c.Value,
+                        }).ToList(),
+                    });
+                    break;
+                case NodeType.Float:
+                    if (parent.fa == null) parent.fa = new List<FloatListEntry>();
+                    parent.fa.Add(new FloatListEntry
+                    {
+                        n = obj.Name,
+                        c = obj.ListCount,
+                        nil = obj.IsNull,
+                        v = obj.Children.Select(c => new FloatEntry
+                        {
+                            n = c.Name,
+                            v = (float)c.Value,
                         }).ToList(),
                     });
                     break;
@@ -272,6 +296,16 @@ namespace UnityObjectSerializer
             public List<IntListEntry> i32a;
 
             /// <summary>
+            /// FloatValues
+            /// </summary>
+            public List<FloatEntry> f;
+
+            /// <summary>
+            /// FloatList
+            /// </summary>
+            public List<FloatListEntry> fa;
+
+            /// <summary>
             /// StringValues
             /// </summary>
             public List<StringEntry> s;
@@ -286,6 +320,14 @@ namespace UnityObjectSerializer
         {
             string Name { get; }
             object Value { get; }
+        }
+
+        interface IListEntry
+        {
+            string Name { get; }
+            int Count { get; }
+            bool IsNull { get; }
+            IEnumerable<IValueEntry> Value { get; }
         }
 
 
@@ -304,14 +346,6 @@ namespace UnityObjectSerializer
 
             public string Name => n;
             public object Value => v;
-        }
-
-        interface IListEntry
-        {
-            string Name { get; }
-            int Count { get; }
-            bool IsNull { get; }
-            IEnumerable<IValueEntry> Value { get; }
         }
 
         [Serializable]
@@ -336,6 +370,52 @@ namespace UnityObjectSerializer
             /// Value
             /// </summary>
             public List<IntEntry> v;
+
+            public string Name => n;
+            public int Count => c;
+            public bool IsNull => nil;
+            public IEnumerable<IValueEntry> Value => v?.OfType<IValueEntry>();
+        }
+
+        [Serializable]
+        struct FloatEntry : IValueEntry
+        {
+            /// <summary>
+            /// Name
+            /// </summary>
+            public string n;
+
+            /// <summary>
+            /// Value
+            /// </summary>
+            public float v;
+
+            public string Name => n;
+            public object Value => v;
+        }
+
+        [Serializable]
+        struct FloatListEntry : IListEntry
+        {
+            /// <summary>
+            /// Name
+            /// </summary>
+            public string n;
+
+            /// <summary>
+            /// Count
+            /// </summary>
+            public int c;
+
+            /// <summary>
+            /// IsNull(nil)
+            /// </summary>
+            public bool nil;
+
+            /// <summary>
+            /// Value
+            /// </summary>
+            public List<FloatEntry> v;
 
             public string Name => n;
             public int Count => c;
