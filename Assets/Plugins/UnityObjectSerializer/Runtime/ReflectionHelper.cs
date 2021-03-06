@@ -12,25 +12,26 @@ namespace UnityObjectSerializer
             return Activator.CreateInstance(type);
         }
 
+        public static object GetDefaultValue(Type type)
+        {
+            if (type.IsValueType)
+            {
+                return CreateInstance(type);
+            }
+
+            return null;
+        }
+
         public static IList CreateArrayOrList(Type type, int capacity)
         {
             var list = Activator.CreateInstance(type, capacity) as IList;
-            if (list == null) return null;
-            if (type.IsArray)
+            if (type.IsArray) return list;
+
+            var elemType = type.GenericTypeArguments[0];
+            var defaultValue = GetDefaultValue(elemType);
+            for (var i = 0; i < capacity; i++)
             {
-                var elemType = type.GetElementType();
-                for (var i = 0; i < capacity; i++)
-                {
-                    list[i] = CreateInstance(elemType);
-                }
-            }
-            else
-            {
-                var elemType = type.GenericTypeArguments[0];
-                for (var i = 0; i < capacity; i++)
-                {
-                    list.Add(CreateInstance(elemType));
-                }
+                list.Add(defaultValue);
             }
 
             return list;
