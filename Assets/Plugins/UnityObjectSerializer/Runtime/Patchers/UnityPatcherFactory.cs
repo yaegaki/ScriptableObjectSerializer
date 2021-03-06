@@ -10,18 +10,23 @@ namespace UnityObjectSerializer.Patchers
     {
         public bool IsSerializableType(Type type)
         {
-            if (typeof(Vector2) == type) return true;
-            if (typeof(Vector3) == type) return true;
-            if (typeof(Vector4) == type) return true;
-            if (typeof(Quaternion) == type) return true;
-            if (typeof(Vector2Int) == type) return true;
-            if (typeof(Vector3Int) == type) return true;
+            if (Match<Vector2>(type)) return true;
+            if (Match<Vector3>(type)) return true;
+            if (Match<Vector4>(type)) return true;
+            if (Match<Quaternion>(type)) return true;
+            if (Match<Vector2Int>(type)) return true;
+            if (Match<Vector3Int>(type)) return true;
 
-            return typeof(ScriptableObject).IsAssignableFrom(type);
+            return SerializeHelper.MatchTypeForClass<ScriptableObject>(type);
         }
 
         public IPatcher CreatePatcher(Type type, IPatcherRegistry patcherRegistry)
         {
+            if (type.IsArray || type.IsGenericType)
+            {
+                return new ListPatcher(type, NodeType.Complex, patcherRegistry);
+            }
+
             if (typeof(Vector2) == type ||
                 typeof(Vector3) == type ||
                 typeof(Vector4) == type ||
@@ -42,5 +47,8 @@ namespace UnityObjectSerializer.Patchers
         {
             context.Use<UnityPatchContext>(new UnityPatchContext());
         }
+
+        private static bool Match<T>(Type t)
+            => SerializeHelper.MatchType<T>(t);
     }
 }

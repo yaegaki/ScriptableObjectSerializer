@@ -45,5 +45,24 @@ namespace UnityObjectSerializer
 
             return true;
         }
+
+        public static bool MatchType<T>(Type type)
+            => typeof(T) == type || typeof(T[]) == type || typeof(List<T>) == type;
+
+        public static bool MatchTypeForClass<T>(Type type)
+        {
+            if (typeof(T).IsAssignableFrom(type)) return true;
+            if (type.IsArray)
+            {
+                return typeof(T).IsAssignableFrom(type.GetElementType());
+            }
+            if (type.IsGenericType)
+            {
+                if (type.GetGenericTypeDefinition() != typeof(List<>)) return false;
+                return typeof(T).IsAssignableFrom(type.GenericTypeArguments[0]);
+            }
+
+            return false;
+        }
     }
 }

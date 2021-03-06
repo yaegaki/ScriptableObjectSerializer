@@ -40,7 +40,7 @@ namespace UnityObjectSerializer
         }
 
         private static bool Match<T>(Type t)
-            => t == typeof(T) || t == typeof(T[]) || t == typeof(List<T>);
+            => SerializeHelper.MatchType<T>(t);
     }
 
     public interface IObjectNode
