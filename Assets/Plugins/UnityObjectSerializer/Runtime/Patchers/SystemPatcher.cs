@@ -176,6 +176,7 @@ namespace UnityObjectSerializer.Patchers
             if (patch.Type != this.nodeType) return;
             if (!patch.IsList) return;
             if (patch.ListCount < 0) return;
+            if (patch.IsNull) return;
 
             if (obj == null)
             {
